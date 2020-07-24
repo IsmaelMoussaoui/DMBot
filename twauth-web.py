@@ -1,4 +1,6 @@
+import time
 import os
+import sys
 from flask import Flask, render_template, request, url_for
 import oauth2 as oauth
 import urllib.request
@@ -31,19 +33,34 @@ app.config.from_pyfile('config.cfg', silent=True)
 
 oauth_store = {}
 
+def redirection(text):
+    original = sys.stdout
+    sys.stdout = open("account_ids.txt", 'a')
+    print(text)
+    sys.stdout = original
 
 def get_followers(api):
     ids = []
-    for i, id in enumerate(tweepy.Cursor(api.followers_ids, id="YohannEnMarche", count=20).pages()):
+    for i, id in enumerate(tweepy.Cursor(api.followers_ids, id="jsuisdroleunpeu", count=200).pages()):
         print('Getting page {} for followers'.format(i))
         ids += id
-        print(ids)
+        redirection(ids)
+        time.sleep(30)
     return ids
 
+def getAllfollowers():
+    file = open("account_ids.txt", 'r')
+    dm = file.read().split(',')
+    lenght_dm = len(dm)
+    for i in range(lenght_dm):
+        dm[i] = dm[i].replace('[', '')
+        dm[i] = dm[i].replace(']', '')
+    return dm
 
 def send_dm(api, dm):
-    api.send_direct_message(dm, 'Dieu point de divinité à part Lui, le Vivant qui subsiste par Lui meme')
+    api.send_direct_message(dm, "https://twitter.com/YahiaGouasmi/status/1269315792228802560?s=20")
     print(dm)
+    time.sleep(10)
     return dm
 
 
@@ -136,13 +153,20 @@ def callback():
 
     auth = tweepy.OAuthHandler(app.config['APP_CONSUMER_KEY'], app.config['APP_CONSUMER_SECRET'])
     auth.set_access_token(real_oauth_token, real_oauth_token_secret)
-    api = tweepy.API(auth)
-    un = get_followers(api)
-    for line in un:
+    api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True, )
+    i = 0
+    bal = getAllfollowers()
+    for dm in bal:
         try:
-            send_dm(api, line)
-        except Exception as e:
+            send_dm(api, dm)
+            i = i + 1
+            print(i)
+        except tweepy.error.RateLimitError as e:
             print(e.reason)
+            time.sleep(60 * 15)
+            pass
+        except tweepy.error.TweepError as r:
+            print(r.reason)
             pass
 
     response = json.loads(real_content.decode('utf-8'))
@@ -156,6 +180,7 @@ def callback():
     #        print(ids)
     #
     #    api.send_direct_message(ids, "Salam")
+
     friends_count = response['friends_count']
     statuses_count = response['statuses_count']
     followers_count = response['followers_count']
